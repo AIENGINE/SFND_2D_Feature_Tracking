@@ -18,7 +18,7 @@
 
 using namespace std;
 
-int evaluateDetDescAlgorithms(string selectedDetectorType, string selectedDescriptorType, MatchingParameters& descMatchingParameters, bool visualizationEnable=false)
+int evaluateDetDescAlgorithms(string selectedDetectorType, string selectedDescriptorType, MatchingParameters& descMatchingParameters, ofstream& fileOut, bool visualizationEnable=false)
 {
     string dataPath{"../"};
 
@@ -215,14 +215,14 @@ int evaluateDetDescAlgorithms(string selectedDetectorType, string selectedDescri
     } // eof loop over all images
     uint totalAvgNumKeypointsOnVehilce = accumulate(numOfKeypointsPerImage.begin(), numOfKeypointsPerImage.end(), 0.0) / numOfKeypointsPerImage.size();
     uint totalAvgNumKeypointsNeighborboodSize = accumulate(nunOfKeypointNeighborhoodSizePerImage.begin(), nunOfKeypointNeighborhoodSizePerImage.end(), 0.0) / nunOfKeypointNeighborhoodSizePerImage.size();
-    cout<< "Avg keypoints on the preceding Vehicle: "<< totalAvgNumKeypointsOnVehilce<<endl;
-    cout<< "Avg keypoint neighborhood size : "<< totalAvgNumKeypointsNeighborboodSize<<endl;
+    fileOut<< "Avg keypoints on the preceding Vehicle for "<<numOfKeypointsPerImage.size() << " images : "<< totalAvgNumKeypointsOnVehilce<<endl;
+    fileOut<< "Avg keypoint neighborhood size for "<<nunOfKeypointNeighborhoodSizePerImage.size()<< " images : " << totalAvgNumKeypointsNeighborboodSize<<endl;
     for (uint idx{0}; idx <= numOfKeypointMatchesPerImage.size(); idx++)
     {
-        cout<< "Keypoints Matches in Image " << idx << " : " << numOfKeypointMatchesPerImage[idx]<<endl;
+        fileOut<< "Keypoints Matches in Image " << idx << " : " << numOfKeypointMatchesPerImage[idx]<<endl;
 
     }
-    cout<< "Keypoints Matches Accumulated in all 10 Images : "<< accumulate(numOfKeypointMatchesPerImage.begin(), numOfKeypointMatchesPerImage.end(), 0.0) << endl;
+    fileOut<< "Keypoints Matches Accumulated in all 10 Images : "<< accumulate(numOfKeypointMatchesPerImage.begin(), numOfKeypointMatchesPerImage.end(), 0.0) << endl;
 
     vector<double> totalDetDescTime(keypointDetectionTimePerImg.size());
     transform(keypointDetectionTimePerImg.begin(), keypointDetectionTimePerImg.end(),
@@ -234,10 +234,10 @@ int evaluateDetDescAlgorithms(string selectedDetectorType, string selectedDescri
 //    }
     for (uint imgIdx{0}; imgIdx < totalDetDescTime.size(); imgIdx++)
     {
-        cout<< "Total Det. + Des. time : " << imgIdx << " = " << totalDetDescTime[imgIdx]<<endl;
+        fileOut<< "Total Det. + Des. time : " << imgIdx << " = " << totalDetDescTime[imgIdx]<<endl;
     }
     double avgTimeElapsed = accumulate(totalDetDescTime.begin(), totalDetDescTime.end(), 0.0) / totalDetDescTime.size();
-    cout<< "Avg Time Elapsed in " <<totalDetDescTime.size() << " Images : "<< avgTimeElapsed <<endl;
+    fileOut<< "Avg Time Elapsed in " <<totalDetDescTime.size() << " Images : "<< avgTimeElapsed <<endl;
     return 0;
 
 }
@@ -252,13 +252,14 @@ int main(int argc, const char *argv[])
     vector<string> keypointDetectorTypes{"SHITOMASI", "HARRIS", "SIFT", "FAST", "ORB", "BRISK"};
     vector<string> keypointDescriptorTypes{"SIFT", "BRIEF", "BRISK", "FREAK", "ORB"};
     uint retval;
-    string outputLogFile{"evaluation_2dfeatures.log"};
+    string outputLogFile{"../src/evaluation_2dfeatures.log"};
     ofstream out(outputLogFile, ios::out);
     bool visualizationFlag{false};
     for (auto& detectorType: keypointDetectorTypes)
     {
         for (auto& descriptorType: keypointDescriptorTypes)
         {
+            out<< "DetectorType = "<< detectorType << ", "<< "DescriptorType = "<< descriptorType<<endl;
             cout<< "DetectorType = "<< detectorType << ", "<< "DescriptorType = "<< descriptorType<<endl;
             if(detectorType == "SIFT" and descriptorType == "ORB")
                 continue; //SIFT det. and ORB Desc.
@@ -267,17 +268,20 @@ int main(int argc, const char *argv[])
                 descMatchingParameters.matcherType = "MATCH_BF";
                 descMatchingParameters.descriptorType = "DESCRIPTOR_BINARY";
                 descMatchingParameters.selectorType = "SELECT_KNN";
-                retval = evaluateDetDescAlgorithms(detectorType, descriptorType, descMatchingParameters, visualizationFlag);
+                retval = evaluateDetDescAlgorithms(detectorType, descriptorType, descMatchingParameters, out, visualizationFlag);
                 if(retval != 0)
                 {
                     cerr<< "Evaluation failed!!!" <<endl;
                     exit(1);
                 }
             }
-            descMatchingParameters.matcherType = "MATCH_BF";
-            descMatchingParameters.descriptorType = "DESCRIPTOR_HOG";
-            descMatchingParameters.selectorType = "SELECT_KNN";
-            retval = evaluateDetDescAlgorithms(detectorType, descriptorType, descMatchingParameters, visualizationFlag);
+            if(descriptorType != "BRISK")
+            {
+                descMatchingParameters.matcherType = "MATCH_BF";
+                descMatchingParameters.descriptorType = "DESCRIPTOR_HOG";
+                descMatchingParameters.selectorType = "SELECT_KNN";
+                retval = evaluateDetDescAlgorithms(detectorType, descriptorType, descMatchingParameters, out, visualizationFlag);
+            }
             if(retval != 0)
             {
                 cerr<< "Evaluation failed!!!" <<endl;
@@ -287,12 +291,14 @@ int main(int argc, const char *argv[])
 
         }
     }
-    retval = evaluateDetDescAlgorithms("AKAZE", "AKAZE", descMatchingParameters, visualizationFlag);
+    out<< "DetectorType = "<< "AKAZE"<< ", "<< "DescriptorType = "<< "AKAZE"<<endl;
+    cout<< "DetectorType = "<< "AKAZE"<< ", "<< "DescriptorType = "<< "AKAZE"<<endl;
+    retval = evaluateDetDescAlgorithms("AKAZE", "AKAZE", descMatchingParameters, out, visualizationFlag);
     if(retval != 0)
     {
         cerr<< "Evaluation failed!!!" <<endl;
         exit(1);
     }
-
+    out.close();
     return 0;
 }
