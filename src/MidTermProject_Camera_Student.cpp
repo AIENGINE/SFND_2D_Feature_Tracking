@@ -51,7 +51,6 @@ int evaluateDetDescAlgorithms(string selectedDetectorType, string selectedDescri
     for (size_t imgIndex = 0; imgIndex <= imgEndIndex - imgStartIndex; imgIndex++)
     {
         /* LOAD IMAGE INTO BUFFER */
-
         // assemble filenames for current index
         ostringstream imgNumber;
         imgNumber << setfill('0') << setw(imgFillWidth) << imgStartIndex + imgIndex;
@@ -69,7 +68,6 @@ int evaluateDetDescAlgorithms(string selectedDetectorType, string selectedDescri
         frame.cameraImg = imgGray;
         circularIdx = circularIdx % dataBufferSize;
         dataBuffer[circularIdx] = frame;
-
 
         //// EOF STUDENT ASSIGNMENT
         cout << "#1 : LOAD IMAGE INTO BUFFER done" << endl;
@@ -162,7 +160,7 @@ int evaluateDetDescAlgorithms(string selectedDetectorType, string selectedDescri
 
         cout << "#3 : EXTRACT DESCRIPTORS done" << endl;
         circularIdx++;
-//        if (circularIdx > 1)
+
 //        if (dataBuffer.size() > 1) // wait until at least two images have been processed
         if (!dataBuffer[0].cameraImg.empty() && !dataBuffer[1].cameraImg.empty())
         {
@@ -227,11 +225,7 @@ int evaluateDetDescAlgorithms(string selectedDetectorType, string selectedDescri
     vector<double> totalDetDescTime(keypointDetectionTimePerImg.size());
     transform(keypointDetectionTimePerImg.begin(), keypointDetectionTimePerImg.end(),
             keypointDiscriptorTimePerImg.begin(), totalDetDescTime.begin(), plus<double>());
-//    for (uint imgIdx{0}; imgIdx <= numOfKeypointMatchesPerImage.size(); imgIdx++)
-//    {
-//        cout<< "Total Det. + Des. time : " << imgIdx << " = " << keypointDetectionTimePerImg[imgIdx] + keypointDiscriptorTimePerImg[imgIdx]<<endl;
-//
-//    }
+
     for (uint imgIdx{0}; imgIdx < totalDetDescTime.size(); imgIdx++)
     {
         fileOut<< "Total Det. + Des. time : " << imgIdx << " = " << totalDetDescTime[imgIdx]<<endl;
