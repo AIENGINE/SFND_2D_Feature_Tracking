@@ -11,26 +11,44 @@ void matchDescriptors(std::vector<cv::KeyPoint> &kPtsSource, std::vector<cv::Key
     bool crossCheck = false;
     cv::Ptr<cv::DescriptorMatcher> matcher;
 
-    if (matcherType.compare("MAT_BF") == 0)
+
+    if (matcherType.compare("MATCH_BF") == 0)
     {
-        int normType = cv::NORM_HAMMING;
+        int normType = descriptorType.compare("DESCRIPTOR_BINARY") == 0 ? cv::NORM_HAMMING : cv::NORM_L2;
         matcher = cv::BFMatcher::create(normType, crossCheck);
     }
-    else if (matcherType.compare("MAT_FLANN") == 0)
+    else if (matcherType == "MATCH_FLANN")
     {
-        // ...
+        if (descSource.type() != CV_32F)
+        { // OpenCV bug workaround : convert binary descriptors to floating point due to a bug in current OpenCV implementation
+            descSource.convertTo(descSource, CV_32F);
+            descRef.convertTo(descRef, CV_32F);
+        }
+
+        matcher = cv::FlannBasedMatcher::create();
+        cout << "FLANN matching"<<endl;
     }
 
     // perform matching task
-    if (selectorType.compare("SEL_NN") == 0)
+    if (selectorType == "SELECT_NN")
     { // nearest neighbor (best match)
-
         matcher->match(descSource, descRef, matches); // Finds the best match for each descriptor in desc1
     }
-    else if (selectorType.compare("SEL_KNN") == 0)
+    else if (selectorType == "SELECT_KNN")
     { // k nearest neighbors (k=2)
 
-        // ...
+        vector<vector<cv::DMatch>> knnMatches;
+        const float ratioThreshold = 0.80;
+
+        matcher->knnMatch(descSource, descRef, knnMatches, 2);
+
+        for (auto& knnMatch: knnMatches)
+        {
+
+            if ((knnMatch[0].distance / knnMatch[1].distance) < ratioThreshold)
+                matches.push_back(knnMatch[0]);
+
+        }
     }
 }
 
@@ -39,6 +57,7 @@ void descKeypoints(vector<cv::KeyPoint> &keypoints, cv::Mat &img, cv::Mat &descr
 {
     // select appropriate descriptor
     cv::Ptr<cv::DescriptorExtractor> extractor;
+    cv::Ptr<cv::AKAZE> extractorAKAZE;
     if (descriptorType.compare("BRISK") == 0)
     {
 
@@ -48,15 +67,34 @@ void descKeypoints(vector<cv::KeyPoint> &keypoints, cv::Mat &img, cv::Mat &descr
 
         extractor = cv::BRISK::create(threshold, octaves, patternScale);
     }
-    else
+    //create descriptors with default parameters
+    else if (descriptorType == "SIFT")
     {
-
-        //...
+        extractor = cv::SIFT::create();
+    }
+    else if (descriptorType == "BRIEF")
+    {
+        extractor = cv::xfeatures2d::BriefDescriptorExtractor::create();
+    }
+    else if (descriptorType == "ORB")
+    {
+        extractor = cv::ORB::create();
+    }
+    else if (descriptorType == "FREAK")
+    {
+        extractor = cv::xfeatures2d::FREAK::create();
+    }
+    else if (descriptorType == "AKAZE")
+    {
+        extractorAKAZE = cv::AKAZE::create();
     }
 
     // perform feature description
     double t = (double)cv::getTickCount();
-    extractor->compute(img, keypoints, descriptors);
+    if(descriptorType == "AKAZE")
+        extractorAKAZE->compute(img, keypoints, descriptors);
+    else
+        extractor->compute(img, keypoints, descriptors);
     t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
     cout << descriptorType << " descriptor extraction in " << 1000 * t / 1.0 << " ms" << endl;
 }
@@ -156,6 +194,7 @@ void detKeypointsHarris(std::vector<cv::KeyPoint> &keypoints, cv::Mat &img, bool
         } // eof loop over cols
     }
     t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+    cout << "HARRIS Corner detection with n =" << keypoints.size() << " keypoints in " << 1000 * t / 1.0 << " ms" << endl;
 
     if (bVis)
     {
@@ -201,6 +240,22 @@ void detKeypointsModern(std::vector<cv::KeyPoint> &keypoints, cv::Mat &img, std:
         calcFeature->detect(img, keypoints);
         t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
         cout << "FAST detector with n = " << keypoints.size() << " keypoints in " << 1000 * t / 1.0 << " ms" << endl;
+    }
+    else if (detectorType.compare("AKAZE") == 0)
+    {
+        calcFeature = cv::AKAZE::create();
+        t = (double)cv::getTickCount();
+        calcFeature->detect(img, keypoints);
+        t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+        cout << "AKAZE detector with n = " << keypoints.size() << " keypoints in " << 1000 * t / 1.0 << " ms" << endl;
+    }
+    else if (detectorType.compare("ORB") == 0)
+    {
+        calcFeature = cv::ORB::create();
+        t = (double)cv::getTickCount();
+        calcFeature->detect(img, keypoints);
+        t = ((double)cv::getTickCount() - t) / cv::getTickFrequency();
+        cout << "ORB detector with n = " << keypoints.size() << " keypoints in " << 1000 * t / 1.0 << " ms" << endl;
     }
 
     if (bVis)
