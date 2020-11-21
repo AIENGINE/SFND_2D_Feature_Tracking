@@ -18,13 +18,8 @@
 
 using namespace std;
 
-/* MAIN PROGRAM */
-int main(int argc, const char *argv[])
+int evaluateDetDescAlgorithms(string selectedDetectorType, string selectedDescriptorType, MatchingParameters& descMatchingParameters, bool visualizationEnable=false)
 {
-
-    /* INIT VARIABLES AND DATA STRUCTURES */
-
-    // data location
     string dataPath{"../"};
 
     // camera
@@ -39,7 +34,7 @@ int main(int argc, const char *argv[])
     //NOTE: For the project if buffersize is increased from 2 then calculations below should be adjusted as well
     const int dataBufferSize{2};       // no. of images which are held in memory (ring buffer) at the same time
     array<DataFrame, dataBufferSize> dataBuffer; // list of data frames which are held in memory at the same time
-    bool bVis{false};            // visualize results
+    bool bVis;            // visualize results
     uint8_t circularIdx{0};
     uint numberOfKeypointsOnVehicle{0};
     vector<uint> numOfKeypointsPerImage;
@@ -53,7 +48,7 @@ int main(int argc, const char *argv[])
     vector<double> keypointDiscriptorTimePerImg;
     /* MAIN LOOP OVER ALL IMAGES */
 
-     for (size_t imgIndex = 0; imgIndex <= imgEndIndex - imgStartIndex; imgIndex++)
+    for (size_t imgIndex = 0; imgIndex <= imgEndIndex - imgStartIndex; imgIndex++)
     {
         /* LOAD IMAGE INTO BUFFER */
 
@@ -83,23 +78,23 @@ int main(int argc, const char *argv[])
 
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
-        string detectorType = "SHITOMASI";
+        //string detectorType = selectedDetectorType;
 
         //// STUDENT ASSIGNMENT
         //// TASK MP.2 -> add the following keypoint detectors in file matching2D.cpp and enable string-based selection based on detectorType
         //// -> HARRIS, FAST, BRISK, ORB, AKAZE, SIFT
 
-        if (detectorType == "SHITOMASI")
+        if (selectedDetectorType == "SHITOMASI")
         {
-            detKeypointsShiTomasi(keypoints, imgGray, keypointDetectionTime, true);
+            detKeypointsShiTomasi(keypoints, imgGray, keypointDetectionTime, visualizationEnable);
         }
-        else if (detectorType == "HARRIS")
+        else if (selectedDetectorType == "HARRIS")
         {
-            detKeypointsHarris(keypoints, imgGray, keypointDetectionTime, true);
+            detKeypointsHarris(keypoints, imgGray, keypointDetectionTime, visualizationEnable);
         }
         else
         {
-            detKeypointsModern(keypoints, imgGray, detectorType, keypointDetectionTime, true);
+            detKeypointsModern(keypoints, imgGray, selectedDetectorType, keypointDetectionTime, visualizationEnable);
         }
         keypointDetectionTimePerImg.push_back(keypointDetectionTime);
         //// EOF STUDENT ASSIGNMENT
@@ -157,8 +152,8 @@ int main(int argc, const char *argv[])
         //// -> BRIEF, ORB, FREAK, AKAZE, SIFT
 
         cv::Mat descriptors;
-        string descriptorType = "BRISK"; // BRIEF, ORB, FREAK, AKAZE, SIFT
-        descKeypoints(dataBuffer[circularIdx].keypoints, dataBuffer[circularIdx].cameraImg, descriptors, descriptorType, keypointDiscriptorTime);
+        //string descriptorType = "BRISK"; // BRIEF, ORB, FREAK, AKAZE, SIFT
+        descKeypoints(dataBuffer[circularIdx].keypoints, dataBuffer[circularIdx].cameraImg, descriptors, selectedDescriptorType, keypointDiscriptorTime);
         keypointDiscriptorTimePerImg.push_back(keypointDiscriptorTime);
         //// EOF STUDENT ASSIGNMENT
 
@@ -175,9 +170,9 @@ int main(int argc, const char *argv[])
             /* MATCH KEYPOINT DESCRIPTORS */
 
             vector<cv::DMatch> matches;
-            string matcherType = "MATCH_BF";        // MAT_BF, MAT_FLANN
-            string descriptorType = "DESCRIPTOR_BINARY"; // DES_BINARY, DES_HOG for distance computation selection
-            string selectorType = "SELECT_KNN";       // SEL_NN, SEL_KNN
+            string matcherType = descMatchingParameters.matcherType;        // MATCH_BF, MATCH_FLANN
+            string descriptorType = descMatchingParameters.descriptorType; // DESCRIPTOR_BINARY, DESCRIPTOR_HOG for distance computation selection
+            string selectorType = descMatchingParameters.selectorType;       // SELECT_NN, SELECT_KNN
 
             //// STUDENT ASSIGNMENT
             //// TASK MP.5 -> add FLANN matching in file matching2D.cpp
@@ -198,7 +193,7 @@ int main(int argc, const char *argv[])
             cout << "#4 : MATCH KEYPOINT DESCRIPTORS done" << endl;
 
             // visualize matches between current and previous image
-            bVis = true;
+            bVis = visualizationEnable;
             if (bVis)
             {
                 cv::Mat matchImg = ((dataBuffer.end() - 1)->cameraImg).clone();
@@ -224,15 +219,80 @@ int main(int argc, const char *argv[])
     cout<< "Avg keypoint neighborhood size : "<< totalAvgNumKeypointsNeighborboodSize<<endl;
     for (uint idx{0}; idx <= numOfKeypointMatchesPerImage.size(); idx++)
     {
-          cout<< "Keypoints Matches in Image " << idx << " : " << numOfKeypointMatchesPerImage[idx]<<endl;
+        cout<< "Keypoints Matches in Image " << idx << " : " << numOfKeypointMatchesPerImage[idx]<<endl;
 
     }
     cout<< "Keypoints Matches Accumulated in all 10 Images : "<< accumulate(numOfKeypointMatchesPerImage.begin(), numOfKeypointMatchesPerImage.end(), 0.0) << endl;
 
-    for (uint imgIdx{0}; imgIdx <= numOfKeypointMatchesPerImage.size(); imgIdx++)
+    vector<double> totalDetDescTime(keypointDetectionTimePerImg.size());
+    transform(keypointDetectionTimePerImg.begin(), keypointDetectionTimePerImg.end(),
+            keypointDiscriptorTimePerImg.begin(), totalDetDescTime.begin(), plus<double>());
+//    for (uint imgIdx{0}; imgIdx <= numOfKeypointMatchesPerImage.size(); imgIdx++)
+//    {
+//        cout<< "Total Det. + Des. time : " << imgIdx << " = " << keypointDetectionTimePerImg[imgIdx] + keypointDiscriptorTimePerImg[imgIdx]<<endl;
+//
+//    }
+    for (uint imgIdx{0}; imgIdx < totalDetDescTime.size(); imgIdx++)
     {
-        cout<< "Total Det. + Des. time : " << imgIdx << " = " << keypointDetectionTimePerImg[imgIdx] + keypointDiscriptorTimePerImg[imgIdx]<<endl;
-
+        cout<< "Total Det. + Des. time : " << imgIdx << " = " << totalDetDescTime[imgIdx]<<endl;
     }
+    double avgTimeElapsed = accumulate(totalDetDescTime.begin(), totalDetDescTime.end(), 0.0) / totalDetDescTime.size();
+    cout<< "Avg Time Elapsed in " <<totalDetDescTime.size() << " Images : "<< avgTimeElapsed <<endl;
+    return 0;
+
+}
+
+/* MAIN PROGRAM */
+int main(int argc, const char *argv[])
+{
+
+    /* INIT VARIABLES AND DATA STRUCTURES */
+
+    MatchingParameters descMatchingParameters;
+    vector<string> keypointDetectorTypes{"SHITOMASI", "HARRIS", "SIFT", "FAST", "ORB", "BRISK"};
+    vector<string> keypointDescriptorTypes{"SIFT", "BRIEF", "BRISK", "FREAK", "ORB"};
+    uint retval;
+    string outputLogFile{"evaluation_2dfeatures.log"};
+    ofstream out(outputLogFile, ios::out);
+    bool visualizationFlag{false};
+    for (auto& detectorType: keypointDetectorTypes)
+    {
+        for (auto& descriptorType: keypointDescriptorTypes)
+        {
+            cout<< "DetectorType = "<< detectorType << ", "<< "DescriptorType = "<< descriptorType<<endl;
+            if(detectorType == "SIFT" and descriptorType == "ORB")
+                continue; //SIFT det. and ORB Desc.
+            if (descriptorType == "BRISK")
+            {
+                descMatchingParameters.matcherType = "MATCH_BF";
+                descMatchingParameters.descriptorType = "DESCRIPTOR_BINARY";
+                descMatchingParameters.selectorType = "SELECT_KNN";
+                retval = evaluateDetDescAlgorithms(detectorType, descriptorType, descMatchingParameters, visualizationFlag);
+                if(retval != 0)
+                {
+                    cerr<< "Evaluation failed!!!" <<endl;
+                    exit(1);
+                }
+            }
+            descMatchingParameters.matcherType = "MATCH_BF";
+            descMatchingParameters.descriptorType = "DESCRIPTOR_HOG";
+            descMatchingParameters.selectorType = "SELECT_KNN";
+            retval = evaluateDetDescAlgorithms(detectorType, descriptorType, descMatchingParameters, visualizationFlag);
+            if(retval != 0)
+            {
+                cerr<< "Evaluation failed!!!" <<endl;
+                exit(1);
+            }
+
+
+        }
+    }
+    retval = evaluateDetDescAlgorithms("AKAZE", "AKAZE", descMatchingParameters, visualizationFlag);
+    if(retval != 0)
+    {
+        cerr<< "Evaluation failed!!!" <<endl;
+        exit(1);
+    }
+
     return 0;
 }
