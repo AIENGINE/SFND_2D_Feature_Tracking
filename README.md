@@ -218,7 +218,7 @@ See the classroom instruction and code comments for more details on each of thes
   * Solution : Avg.(taken over 10 images) Keypoints on the preceding vehicle
   
     | Detector/Descriptor  | SIFT  |
-    |---|---|---|---|---|---|---|
+    |---|---|
     | SHI-TOMASI  | 658  | 
     | HARRIS  | 34 |
     | SIFT  | 747 |
