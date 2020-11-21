@@ -45,6 +45,12 @@ int main(int argc, const char *argv[])
     vector<uint> numOfKeypointsPerImage;
     uint avgKeypointNeighborhoodSize{0};
     vector<uint> nunOfKeypointNeighborhoodSizePerImage;
+    vector<uint> numOfKeypointMatchesPerImage;
+    uint numOfKeypointMatches;
+    double keypointDetectionTime;
+    double keypointDiscriptorTime;
+    vector<double> keypointDetectionTimePerImg;
+    vector<double> keypointDiscriptorTimePerImg;
     /* MAIN LOOP OVER ALL IMAGES */
 
      for (size_t imgIndex = 0; imgIndex <= imgEndIndex - imgStartIndex; imgIndex++)
@@ -77,7 +83,7 @@ int main(int argc, const char *argv[])
 
         // extract 2D keypoints from current image
         vector<cv::KeyPoint> keypoints; // create empty feature list for current image
-        string detectorType = "AKAZE";
+        string detectorType = "SHITOMASI";
 
         //// STUDENT ASSIGNMENT
         //// TASK MP.2 -> add the following keypoint detectors in file matching2D.cpp and enable string-based selection based on detectorType
@@ -85,16 +91,17 @@ int main(int argc, const char *argv[])
 
         if (detectorType == "SHITOMASI")
         {
-            detKeypointsShiTomasi(keypoints, imgGray, true);
+            detKeypointsShiTomasi(keypoints, imgGray, keypointDetectionTime, true);
         }
         else if (detectorType == "HARRIS")
         {
-            detKeypointsHarris(keypoints, imgGray, true);
+            detKeypointsHarris(keypoints, imgGray, keypointDetectionTime, true);
         }
         else
         {
-            detKeypointsModern(keypoints, imgGray, detectorType, true);
+            detKeypointsModern(keypoints, imgGray, detectorType, keypointDetectionTime, true);
         }
+        keypointDetectionTimePerImg.push_back(keypointDetectionTime);
         //// EOF STUDENT ASSIGNMENT
 
         //// STUDENT ASSIGNMENT
@@ -130,7 +137,7 @@ int main(int argc, const char *argv[])
         //// EOF STUDENT ASSIGNMENT
 
         // optional : limit number of keypoints (helpful for debugging and learning)
-        bool bLimitKpts = true ;
+        bool bLimitKpts = false ;
         if (bLimitKpts)
         {
             const int maxKeypoints = 50;
@@ -150,8 +157,9 @@ int main(int argc, const char *argv[])
         //// -> BRIEF, ORB, FREAK, AKAZE, SIFT
 
         cv::Mat descriptors;
-        string descriptorType = "AKAZE"; // BRIEF, ORB, FREAK, AKAZE, SIFT
-        descKeypoints(dataBuffer[circularIdx].keypoints, dataBuffer[circularIdx].cameraImg, descriptors, descriptorType);
+        string descriptorType = "BRISK"; // BRIEF, ORB, FREAK, AKAZE, SIFT
+        descKeypoints(dataBuffer[circularIdx].keypoints, dataBuffer[circularIdx].cameraImg, descriptors, descriptorType, keypointDiscriptorTime);
+        keypointDiscriptorTimePerImg.push_back(keypointDiscriptorTime);
         //// EOF STUDENT ASSIGNMENT
 
         // push descriptors for current frame to end of data buffer
@@ -168,7 +176,7 @@ int main(int argc, const char *argv[])
 
             vector<cv::DMatch> matches;
             string matcherType = "MATCH_BF";        // MAT_BF, MAT_FLANN
-            string descriptorType = "DESCRIPTOR_HOG"; // DES_BINARY, DES_HOG for distance computation selection
+            string descriptorType = "DESCRIPTOR_BINARY"; // DES_BINARY, DES_HOG for distance computation selection
             string selectorType = "SELECT_KNN";       // SEL_NN, SEL_KNN
 
             //// STUDENT ASSIGNMENT
@@ -184,6 +192,8 @@ int main(int argc, const char *argv[])
 
             // store matches in current data frame
             (dataBuffer.end() - 1)->kptMatches = matches;
+            numOfKeypointMatches = (dataBuffer.end()-1)->kptMatches.size();
+            numOfKeypointMatchesPerImage.push_back(numOfKeypointMatches);
 
             cout << "#4 : MATCH KEYPOINT DESCRIPTORS done" << endl;
 
@@ -212,5 +222,17 @@ int main(int argc, const char *argv[])
     uint totalAvgNumKeypointsNeighborboodSize = accumulate(nunOfKeypointNeighborhoodSizePerImage.begin(), nunOfKeypointNeighborhoodSizePerImage.end(), 0.0) / nunOfKeypointNeighborhoodSizePerImage.size();
     cout<< "Avg keypoints on the preceding Vehicle: "<< totalAvgNumKeypointsOnVehilce<<endl;
     cout<< "Avg keypoint neighborhood size : "<< totalAvgNumKeypointsNeighborboodSize<<endl;
+    for (uint idx{0}; idx <= numOfKeypointMatchesPerImage.size(); idx++)
+    {
+          cout<< "Keypoints Matches in Image " << idx << " : " << numOfKeypointMatchesPerImage[idx]<<endl;
+
+    }
+    cout<< "Keypoints Matches Accumulated in all 10 Images : "<< accumulate(numOfKeypointMatchesPerImage.begin(), numOfKeypointMatchesPerImage.end(), 0.0) << endl;
+
+    for (uint imgIdx{0}; imgIdx <= numOfKeypointMatchesPerImage.size(); imgIdx++)
+    {
+        cout<< "Total Det. + Des. time : " << imgIdx << " = " << keypointDetectionTimePerImg[imgIdx] + keypointDiscriptorTimePerImg[imgIdx]<<endl;
+
+    }
     return 0;
 }
