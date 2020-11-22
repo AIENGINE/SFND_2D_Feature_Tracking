@@ -275,13 +275,12 @@ int main(int argc, const char *argv[])
                 descMatchingParameters.descriptorType = "DESCRIPTOR_HOG";
                 descMatchingParameters.selectorType = "SELECT_KNN";
                 retval = evaluateDetDescAlgorithms(detectorType, descriptorType, descMatchingParameters, out, visualizationFlag);
+                if(retval != 0)
+                {
+                    cerr<< "Evaluation failed!!!" <<endl;
+                    exit(1);
+                }
             }
-            if(retval != 0)
-            {
-                cerr<< "Evaluation failed!!!" <<endl;
-                exit(1);
-            }
-
 
         }
     }
